@@ -1,0 +1,229 @@
+# RC-Mamba Evaluation Configuration
+# This file defines evaluation tasks, metrics, and benchmarking settings
+
+evaluation:
+  # Global Evaluation Settings
+  output_dir: "results/"
+  save_predictions: true
+  save_metrics: true
+  generate_plots: true
+  
+  # Model and Data Configuration
+  model:
+    checkpoint_path: null  # Path to model checkpoint
+    device: "auto"         # Device for evaluation
+    batch_size: 16         # Evaluation batch size
+    max_length: 2048       # Maximum sequence length
+    
+  # Task Configuration
+  tasks:
+    # Long-Context Tasks
+    long_context:
+      enabled: true
+      datasets: ["narrativeqa", "qmsum", "gov_report"]
+      sequence_lengths: [1000, 2000, 4000, 8000, 16000]
+      metrics: ["accuracy", "f1", "rouge_l", "exact_match"]
+      
+    # Needle-in-Haystack Evaluation
+    needle_in_haystack:
+      enabled: true
+      haystack_lengths: [1000, 2000, 4000, 8000]
+      needle_positions: [0.1, 0.3, 0.5, 0.7, 0.9]  # Relative positions
+      num_samples: 100
+      metrics: ["recall", "precision", "f1"]
+      
+    # Multimodal Tasks
+    multimodal:
+      enabled: true
+      datasets: ["vqa", "coco_captions", "flickr30k"]
+      modalities: ["text", "image", "audio"]
+      metrics: ["accuracy", "bleu", "cider", "spice"]
+      
+    # Cross-Lingual Tasks
+    cross_lingual:
+      enabled: true
+      datasets: ["xnli", "paws_x", "xcopa"]
+      languages: ["en", "es", "fr", "de", "zh", "ar"]
+      metrics: ["accuracy", "f1_macro", "f1_micro"]
+      
+    # Efficiency Analysis
+    efficiency:
+      enabled: true
+      metrics: ["latency", "throughput", "memory_usage", "flops"]
+      sequence_lengths: [512, 1024, 2048, 4096]
+      batch_sizes: [1, 4, 8, 16]
+      
+  # Retrieval Configuration
+  retrieval:
+    # Retrieval System Settings
+    embedding_model: "sentence-transformers/all-MiniLM-L6-v2"
+    corpus_path: "data/retrieval_corpus"
+    index_path: "data/faiss_index"
+    
+    # Retrieval Parameters
+    k_values: [1, 3, 5, 10, 20]  # Number of retrieved documents
+    similarity_metric: "cosine"   # Options: cosine, euclidean, dot_product
+    rerank: false                 # Enable reranking
+    
+    # Multi-hop Retrieval
+    max_hops: 3
+    hop_threshold: 0.5
+    
+  # Baseline Models for Comparison
+  baselines:
+    enabled: true
+    models:
+      - name: "llama2_7b"
+        path: "meta-llama/Llama-2-7b-hf"
+        type: "causal_lm"
+      - name: "mamba_130m"
+        path: "state-spaces/mamba-130m"
+        type: "mamba"
+      - name: "retrieval_augmented_llama"
+        path: "facebook/rag-token-nq"
+        type: "rag"
+        
+  # Metrics Configuration
+  metrics:
+    # Text Generation Metrics
+    text_generation:
+      - "perplexity"
+      - "bleu"
+      - "rouge_1"
+      - "rouge_2"
+      - "rouge_l"
+      - "meteor"
+      - "bertscore"
+      
+    # Classification Metrics
+    classification:
+      - "accuracy"
+      - "f1_macro"
+      - "f1_micro"
+      - "precision"
+      - "recall"
+      - "matthews_correlation"
+      
+    # Retrieval Metrics
+    retrieval:
+      - "mrr"          # Mean Reciprocal Rank
+      - "ndcg"         # Normalized Discounted Cumulative Gain
+      - "map"          # Mean Average Precision
+      - "recall_at_k"  # Recall@K
+      - "precision_at_k" # Precision@K
+      
+    # Efficiency Metrics
+    efficiency:
+      - "latency_mean"
+      - "latency_p95"
+      - "throughput"
+      - "memory_peak"
+      - "memory_average"
+      - "flops"
+      
+  # Visualization Configuration
+  visualization:
+    # Plot Types
+    plots:
+      - "performance_vs_sequence_length"
+      - "retrieval_k_analysis"
+      - "efficiency_analysis"
+      - "ablation_study"
+      - "baseline_comparison"
+      - "confusion_matrix"
+      - "attention_heatmap"
+      
+    # Plot Settings
+    style: "seaborn-v0_8"
+    figsize: [10, 6]
+    dpi: 300
+    save_formats: ["png", "pdf"]
+    
+  # Statistical Analysis
+  statistics:
+    significance_tests: true
+    confidence_level: 0.95
+    multiple_comparisons: "bonferroni"
+    bootstrap_samples: 1000
+    
+  # Ablation Studies
+  ablation:
+    enabled: true
+    components:
+      - "film_conditioning"
+      - "multi_hop_retrieval"
+      - "quantization"
+      - "pi_dpo_training"
+      - "cross_modal_retrieval"
+      
+    # Component-specific settings
+    film_conditioning:
+      variants: ["no_film", "film_b_only", "film_c_only", "film_both"]
+      
+    multi_hop_retrieval:
+      max_hops: [1, 2, 3, 5]
+      
+    quantization:
+      methods: ["none", "uniform_fsq", "kmeans_fsq", "dual_codebook"]
+      compression_ratios: [1.0, 2.0, 4.0, 8.0]
+      
+  # Error Analysis
+  error_analysis:
+    enabled: true
+    sample_errors: 100
+    error_types: ["retrieval", "reasoning", "factual", "linguistic"]
+    qualitative_analysis: true
+    
+  # Computational Resources
+  resources:
+    max_eval_samples: null  # Limit evaluation samples for speed
+    timeout_per_sample: 30  # Timeout in seconds
+    parallel_evaluation: true
+    num_workers: 4
+    
+  # Output Configuration
+  output:
+    detailed_results: true
+    summary_report: true
+    latex_table: true
+    json_export: true
+    
+    # Report Sections
+    report_sections:
+      - "executive_summary"
+      - "task_performance"
+      - "efficiency_analysis"
+      - "ablation_studies"
+      - "baseline_comparison"
+      - "error_analysis"
+      
+# Experiment Tracking
+tracking:
+  wandb:
+    project: "rc_mamba_evaluation"
+    tags: ["evaluation", "benchmark"]
+    
+  tensorboard:
+    log_dir: "runs/evaluation"
+    
+# Quality Assurance
+quality_assurance:
+  validate_outputs: true
+  check_reproducibility: true
+  verify_metrics: true
+  
+# Advanced Options
+advanced:
+  # Distributed Evaluation
+  distributed:
+    enabled: false
+    world_size: 1
+    
+  # Memory Optimization
+  low_memory_mode: false
+  gradient_checkpointing: true
+  
+  # Caching
+  cache_predictions: true
+  cache_embeddings: true
+  cache_dir: "cache/"

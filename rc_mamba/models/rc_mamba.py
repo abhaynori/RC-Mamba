@@ -22,6 +22,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from typing import Optional, Tuple, List
+from .mamba_ssm import MambaBlock
 
 
 class FiLMModulator(nn.Module):
@@ -59,21 +60,22 @@ class FiLMModulator(nn.Module):
 class RCMambaBlock(nn.Module):
     """A single RCMamba block.
 
-    This block wraps a generic state space model (SSM) layer and applies FiLM
-    conditioning to its B and C projection matrices.  The actual SSM is left as
-    a placeholder; you should integrate your favourite Mamba implementation or
-    another sequence model that exposes B and C projections.
+    This block wraps a real Mamba SSM layer and applies FiLM
+    conditioning to its B and C projection matrices.
     """
 
     def __init__(self, d_model: int, d_state: int, expand: int, retrieval_dim: int):
         super().__init__()
-        # Placeholder SSM; replace with a real SSM layer (e.g. from mamba_ssm)
-        self.ssm = None  # TODO: integrate an SSM implementation
+        # Real Mamba SSM implementation
+        self.ssm = MambaBlock(
+            d_model=d_model,
+            d_state=d_state,
+            expand=expand
+        )
         self.d_model = d_model
-        # Projection dimensions; for most Mamba models B and C map from d_model → d_state and d_state → d_model
-        self.d_proj = d_model
+        self.d_state = d_state
         # FiLM modulator maps retrieval embeddings to FiLM parameters
-        self.modulator = FiLMModulator(retrieval_dim=retrieval_dim, proj_dim=self.d_proj)
+        self.modulator = FiLMModulator(retrieval_dim=retrieval_dim, proj_dim=d_state)
 
     def forward(self, x: torch.Tensor, retrieval: torch.Tensor) -> torch.Tensor:
         """Forward pass with FiLM conditioning.
@@ -85,18 +87,12 @@ class RCMambaBlock(nn.Module):
         Returns:
             Updated token representations with shape `(batch, seq_len, d_model)`.
         """
-        # If no SSM is provided, simply return x.  This placeholder allows the
-        # project to run without crashing.  Replace the following with code
-        # that applies the FiLM parameters to the B and C matrices of the SSM.
-        if self.ssm is None:
-            return x
-
-        # Example pseudo‑code for real implementation (not executed here):
-        # gamma_B, beta_B, gamma_C, beta_C = self.modulator(retrieval)
-        # self.ssm.B = (1 + gamma_B.unsqueeze(-1)) * self.ssm.B + beta_B.unsqueeze(-1)
-        # self.ssm.C = (1 + gamma_C.unsqueeze(-1)) * self.ssm.C + beta_C.unsqueeze(-1)
-        # return self.ssm(x)
-        return x
+        # Get FiLM parameters from retrieval embedding
+        gamma_B, beta_B, gamma_C, beta_C = self.modulator(retrieval)
+        film_params = (gamma_B, beta_B, gamma_C, beta_C)
+        
+        # Apply FiLM-conditioned Mamba block
+        return self.ssm(x, film_params=film_params)
 
 
 class RCMamba(nn.Module):

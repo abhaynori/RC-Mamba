@@ -1,0 +1,74 @@
+# RC-Mamba Model Configuration
+# This file defines the default model architecture and hyperparameters
+
+model:
+  name: "rc_mamba_base"
+  vocab_size: 32000
+  d_model: 768
+  n_layers: 12
+  
+  # State Space Model Configuration
+  ssm:
+    d_state: 16          # State dimension
+    d_conv: 4            # Convolution kernel size  
+    expand_factor: 2     # MLP expansion factor
+    dt_rank: "auto"      # Delta parameter rank (auto = d_model // 16)
+    film_conditioning: true  # Enable FiLM conditioning for retrieval
+    
+  # Retrieval Configuration
+  retrieval:
+    embedding_dim: 512        # Retrieval embedding dimension
+    max_retrieved: 10         # Maximum number of retrieved items
+    multi_hop: true           # Enable multi-hop retrieval
+    uncertainty_threshold: 0.5 # Threshold for triggering additional hops
+    retrieval_layers: [3, 6, 9]  # Layers to inject retrieval signals
+    
+  # Quantization Configuration
+  quantization:
+    enabled: false
+    method: "dual_codebook"   # Options: uniform_fsq, kmeans_fsq, dual_codebook
+    target_compression: 4.0   # Target compression ratio
+    adaptive_bitwidth: true   # Enable adaptive bit-width selection
+    
+  # Architecture Variants
+  variants:
+    base:
+      d_model: 768
+      n_layers: 12
+      ssm.d_state: 16
+    large:
+      d_model: 1024
+      n_layers: 24
+      ssm.d_state: 32
+    xl:
+      d_model: 1536
+      n_layers: 36
+      ssm.d_state: 48
+
+# Tokenizer Configuration
+tokenizer:
+  name: "microsoft/DialoGPT-medium"  # Base tokenizer
+  padding_side: "left"
+  truncation_side: "left"
+  max_length: 2048
+  
+# Device and Precision Configuration
+compute:
+  device: "auto"              # Options: auto, cpu, cuda, mps
+  dtype: "bfloat16"          # Options: float32, float16, bfloat16
+  compile: false             # Enable torch.compile
+  flash_attention: true      # Use flash attention if available
+  
+# Logging Configuration
+logging:
+  level: "INFO"
+  log_dir: "logs/"
+  wandb:
+    enabled: true
+    project: "rc_mamba"
+    entity: null
+    tags: ["mamba", "retrieval", "ssm"]
+    
+# Random Seeds
+seed: 42
+deterministic: true

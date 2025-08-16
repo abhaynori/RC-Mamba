@@ -1,0 +1,190 @@
+# RC-Mamba Training Configuration
+# This file defines training hyperparameters and optimization settings
+
+training:
+  # Training Method
+  method: "pi_dpo"  # Options: standard, pi_dpo, dpo_only
+  
+  # Basic Training Parameters
+  batch_size: 8
+  gradient_accumulation_steps: 4
+  learning_rate: 1e-4
+  weight_decay: 0.01
+  num_epochs: 5
+  max_steps: null  # If set, overrides num_epochs
+  
+  # Learning Rate Schedule
+  lr_scheduler:
+    type: "cosine"  # Options: linear, cosine, polynomial, constant
+    warmup_steps: 1000
+    warmup_ratio: 0.1
+    num_cycles: 1
+    
+  # Optimizer Configuration
+  optimizer:
+    type: "adamw"  # Options: adamw, adam, sgd
+    betas: [0.9, 0.999]
+    eps: 1e-8
+    amsgrad: false
+    
+  # π-DPO Specific Configuration
+  pi_dpo:
+    sft_weight: 0.7           # Weight for SFT loss component
+    dpo_weight: 0.3           # Weight for DPO loss component
+    uncertainty_threshold: 0.5 # Threshold for mixing SFT/DPO
+    beta: 0.1                 # DPO temperature parameter
+    label_smoothing: 0.0      # Label smoothing for SFT
+    
+  # Standard DPO Configuration
+  dpo:
+    beta: 0.1                 # Temperature parameter
+    loss_type: "sigmoid"      # Options: sigmoid, hinge, ipo
+    label_smoothing: 0.0
+    
+  # Parameter Efficient Fine-tuning
+  lora:
+    enabled: true
+    rank: 16
+    alpha: 32
+    dropout: 0.1
+    target_modules: ["x_proj", "dt_proj", "out_proj"]
+    bias: "none"  # Options: none, all, lora_only
+    
+  # Mixed Precision Training
+  mixed_precision:
+    enabled: true
+    dtype: "bfloat16"  # Options: float16, bfloat16
+    loss_scale: "dynamic"
+    
+  # Gradient Configuration
+  gradient:
+    clipping: 1.0
+    checkpointing: true
+    
+  # Regularization
+  regularization:
+    dropout: 0.1
+    attention_dropout: 0.1
+    residual_dropout: 0.1
+    
+# Data Configuration
+data:
+  # Dataset Selection
+  train_datasets: ["narrativeqa", "hotpotqa"]
+  eval_datasets: ["narrativeqa"]
+  preference_datasets: ["anthropic_hh"]  # For DPO training
+  
+  # Data Loading
+  num_workers: 4
+  pin_memory: true
+  persistent_workers: true
+  
+  # Data Processing
+  max_length: 2048
+  truncation: true
+  padding: "max_length"
+  
+  # Retrieval Data Configuration
+  retrieval:
+    corpus_path: "data/retrieval_corpus"
+    index_path: "data/faiss_index"
+    num_retrieved: 5
+    reindex_interval: 1000  # Re-index every N steps
+    
+# Evaluation Configuration
+evaluation:
+  # Evaluation Strategy
+  strategy: "steps"  # Options: steps, epoch, no
+  eval_steps: 500
+  eval_accumulation_steps: 1
+  
+  # Metrics
+  metrics: ["perplexity", "accuracy", "f1", "rouge", "bleu"]
+  
+  # Early Stopping
+  early_stopping:
+    enabled: true
+    patience: 3
+    metric: "eval_loss"
+    mode: "min"  # Options: min, max
+    
+# Checkpointing Configuration
+checkpointing:
+  save_strategy: "steps"  # Options: steps, epoch, no
+  save_steps: 1000
+  save_total_limit: 3
+  load_best_model_at_end: true
+  metric_for_best_model: "eval_loss"
+  greater_is_better: false
+  
+# Logging Configuration
+logging:
+  strategy: "steps"  # Options: steps, epoch, no
+  steps: 100
+  report_to: ["wandb", "tensorboard"]
+  
+  # Weights & Biases
+  wandb:
+    project: "rc_mamba_training"
+    name: null  # Will be auto-generated
+    notes: null
+    tags: ["training"]
+    
+# Distributed Training
+distributed:
+  enabled: false
+  backend: "nccl"  # Options: nccl, gloo, mpi
+  world_size: 1
+  rank: 0
+  local_rank: 0
+  
+# Resource Management
+resources:
+  dataloader_pin_memory: true
+  dataloader_num_workers: 4
+  max_memory_per_gpu: null  # Auto-detect
+  low_cpu_mem_usage: true
+  
+# Debugging and Profiling
+debug:
+  enabled: false
+  profile_memory: false
+  detect_anomaly: false
+  log_level: "INFO"
+  
+# Reproducibility
+reproducibility:
+  seed: 42
+  deterministic: true
+  benchmark: true  # Set cudnn.benchmark
+  
+# Advanced Training Options
+advanced:
+  # Gradient Checkpointing
+  gradient_checkpointing: true
+  
+  # DeepSpeed Configuration
+  deepspeed:
+    enabled: false
+    config_file: "config/deepspeed_config.json"
+    
+  # Compilation
+  torch_compile:
+    enabled: false
+    mode: "default"  # Options: default, reduce-overhead, max-autotune
+    
+  # Memory Optimization
+  cpu_offload: false
+  pin_memory: true
+  
+  # Quantization during Training
+  quantization:
+    enabled: false
+    method: "8bit"  # Options: 8bit, 4bit
+    
+# Experiment Tracking
+experiment:
+  name: null  # Will be auto-generated
+  description: "RC-Mamba training experiment"
+  tags: ["rc_mamba", "retrieval", "mamba"]
+  notes: null
