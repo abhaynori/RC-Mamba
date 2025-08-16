@@ -459,7 +459,7 @@ If you use RC-Mamba in your research, please cite:
 ```bibtex
 @inproceedings{rc_mamba_2024,
   title={RC-Mamba: Retrieval-Conditioned State Space Models for Enhanced Reasoning},
-  author={Your Name and Collaborators},
+  author={Abhay Nori},
   booktitle={Advances in Neural Information Processing Systems},
   year={2024}
 }
@@ -474,9 +474,9 @@ If you use RC-Mamba in your research, please cite:
 
 ## 📞 Contact
 
-- **Issues**: [GitHub Issues](https://github.com/your-username/RC-Mamba/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/your-username/RC-Mamba/discussions)
-- **Email**: your.email@institution.edu
+- **Issues**: [GitHub Issues](https://github.com/abhaynori/RC-Mamba/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/abhaynori/RC-Mamba/discussions)
+- **Email**: anori@uw.edu
 
 ---
 
