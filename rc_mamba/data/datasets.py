@@ -7,6 +7,7 @@ used in the research evaluation including:
 - Multimodal datasets (VQAv2, COCO, Flickr30k) 
 - Cross-lingual datasets (XNLI, Multi30k)
 - Audio datasets (LibriSpeech, Common Voice)
+- CulturaX multilingual dataset (6.3T tokens, 167 languages)
 """
 
 import torch
@@ -23,6 +24,14 @@ from transformers import AutoTokenizer
 import io
 import base64
 import warnings
+
+# Import CulturaX integration
+from .culturax_integration import (
+    CulturaXDataModule, 
+    CulturaXConfig, 
+    create_culturax_config,
+    CULTURAX_LANGUAGES
+)
 
 
 class NarrativeQADataset(Dataset):
@@ -457,6 +466,52 @@ class DatasetFactory:
         )
     
     @staticmethod
+    def create_culturax_dataset(
+        languages: List[str] = None,
+        max_samples_per_language: int = 10000,
+        streaming: bool = True,
+        tokenizer: Optional[AutoTokenizer] = None,
+        **kwargs
+    ) -> CulturaXDataModule:
+        """Create CulturaX multilingual dataset."""
+        if languages is None:
+            # Default to diverse language selection
+            languages = ['en', 'es', 'fr', 'de', 'zh', 'ar', 'hi', 'ru', 'ja', 'pt']
+        
+        config = create_culturax_config(
+            languages=languages,
+            max_samples_per_language=max_samples_per_language,
+            streaming=streaming,
+            **kwargs
+        )
+        
+        data_module = CulturaXDataModule(config, tokenizer)
+        data_module.setup()
+        
+        return data_module
+    
+    @staticmethod
+    def create_cross_lingual_evaluation_datasets(
+        languages: List[str] = None,
+        tokenizer: Optional[AutoTokenizer] = None
+    ) -> Dict[str, Dataset]:
+        """Create cross-lingual evaluation datasets using CulturaX."""
+        if languages is None:
+            languages = ['en', 'es', 'fr', 'de', 'zh', 'ar', 'hi', 'ru']
+        
+        config = create_culturax_config(
+            languages=languages,
+            max_samples_per_language=1000,
+            enable_cross_lingual_pairs=True,
+            cross_lingual_languages=languages
+        )
+        
+        data_module = CulturaXDataModule(config, tokenizer)
+        data_module.setup()
+        
+        return data_module.cross_lingual_datasets
+    
+    @staticmethod
     def create_multimodal_dataset(
         max_samples_per_modality: int = 500
     ) -> MultimodalDataset:
@@ -474,10 +529,11 @@ class DatasetFactory:
     
     @staticmethod
     def create_evaluation_datasets(
-        tokenizer: Optional[AutoTokenizer] = None
+        tokenizer: Optional[AutoTokenizer] = None,
+        include_culturax: bool = True
     ) -> Dict[str, Dataset]:
         """Create all evaluation datasets."""
-        return {
+        datasets = {
             "long_context": DatasetFactory.create_long_context_dataset(
                 max_samples=500, tokenizer=tokenizer
             ),
@@ -486,6 +542,70 @@ class DatasetFactory:
             "librispeech": LibriSpeechDataset(max_samples=100),
             "multimodal": DatasetFactory.create_multimodal_dataset(max_samples_per_modality=200)
         }
+        
+        if include_culturax:
+            try:
+                # Add CulturaX datasets
+                culturax_module = DatasetFactory.create_culturax_dataset(
+                    languages=['en', 'es', 'fr', 'de'],  # Subset for evaluation
+                    max_samples_per_language=500,
+                    streaming=False,  # Non-streaming for evaluation
+                    tokenizer=tokenizer
+                )
+                
+                datasets["culturax_train"] = culturax_module.train_dataset
+                datasets["culturax_test"] = culturax_module.test_dataset
+                
+                # Add cross-lingual datasets
+                cross_lingual = DatasetFactory.create_cross_lingual_evaluation_datasets(
+                    languages=['en', 'es', 'fr', 'de'],
+                    tokenizer=tokenizer
+                )
+                datasets.update({f"crosslingual_{k}": v for k, v in cross_lingual.items()})
+                
+            except Exception as e:
+                warnings.warn(f"Could not load CulturaX datasets: {e}")
+        
+        return datasets
+
+    @staticmethod
+    def create_training_datasets(
+        languages: List[str] = None,
+        max_samples_per_language: int = 50000,
+        tokenizer: Optional[AutoTokenizer] = None,
+        streaming: bool = True
+    ) -> Dict[str, Union[Dataset, CulturaXDataModule]]:
+        """Create datasets for training RC-Mamba."""
+        if languages is None:
+            # Comprehensive language selection for training
+            languages = [
+                'en', 'ru', 'es', 'de', 'fr', 'zh', 'it', 'pt', 'pl', 'ja',
+                'nl', 'ar', 'tr', 'cs', 'vi', 'fa', 'hu', 'el', 'ro', 'sv'
+            ]
+        
+        datasets = {}
+        
+        # Main CulturaX dataset for multilingual training
+        culturax_module = DatasetFactory.create_culturax_dataset(
+            languages=languages,
+            max_samples_per_language=max_samples_per_language,
+            streaming=streaming,
+            build_retrieval_corpus=True,
+            tokenizer=tokenizer
+        )
+        datasets["culturax"] = culturax_module
+        
+        # Additional task-specific datasets
+        datasets.update({
+            "long_context": DatasetFactory.create_long_context_dataset(
+                max_samples=10000, tokenizer=tokenizer
+            ),
+            "multimodal": DatasetFactory.create_multimodal_dataset(
+                max_samples_per_modality=5000
+            )
+        })
+        
+        return datasets
 
 
 def create_research_dataloaders(
